@@ -53,8 +53,8 @@ function salvar(){sv("sel",{m:sel($("muns")),o:sel($("mods")),k:$("kw").value})}
 function setAll(v){$("muns").querySelectorAll("input").forEach(i=>{i.checked=v;i.parentNode.classList.toggle("on",v)});salvar()}
 $("todas").onclick=()=>setAll(true);$("nenhuma").onclick=()=>setAll(false);
 const hoje=new Date().toISOString().slice(0,10),ini=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
-$("df").value=hoje;$("di").value=ini;
-$("modo").onchange=()=>{const p=$("modo").value=="publicacao";$("dts").style.display=p?"":"none";$("lbf").textContent=p?"Até":"Propostas até";if(p)$("df").value=hoje}
+const fut=new Date(Date.now()+90*864e5).toISOString().slice(0,10);$("df").value=fut;$("di").value=ini;
+$("modo").onchange=()=>{const p=$("modo").value=="publicacao";$("dts").style.display=p?"":"none";$("lbf").textContent=p?"Até":"Propostas até";$("df").value=p?hoje:fut}
 const S=ld("sel",{m:null,o:["6","8"],k:""});$("kw").value=S.k||"";$("kw").oninput=salvar;
 Object.entries(MODS).forEach(([k,v])=>chip($("mods"),k,v,S.o.includes(k)));
 fetch("/.netlify/functions/pncp?action=municipios").then(r=>r.json()).then(l=>{
@@ -71,10 +71,11 @@ $("go").onclick=async()=>{
  try{
   const j=await (await fetch("/.netlify/functions/pncp?"+p)).json();
   if(j.erro)throw new Error(j.erro);
+  window._dbg=j;
   const termos=$("kw").value.split(",").map(norm).map(t=>t.trim()).filter(Boolean);
   let it=j.itens.filter(x=>!termos.length||termos.some(t=>norm(x.objeto).includes(t)));
   it.sort((a,b)=>(b.publicacao||"").localeCompare(a.publicacao||""));
-  $("st").textContent=`${it.length} resultado(s)`+(termos.length?` de ${j.total} contratações`:"");
+  $("st").textContent=`${it.length} resultado(s)`+(termos.length?` de ${j.total} contratações`:"")+((j.falhas&&j.falhas.length)?` · avisos do PNCP: ${j.falhas.slice(0,3).join("; ")}`:"");
   $("res").innerHTML=it.map(x=>{let o=esc(x.objeto);
    termos.forEach(t=>{if(!t)return;const re=new RegExp("("+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");o=o.replace(re,"<mark>$1</mark>")});
    return `<div class="r"><h3>${o}</h3><div class="m"><span class="tag">${esc(x.municipio)}</span><span>${esc(x.orgao)}</span><span>${esc(x.modalidade)}</span><span>${R(x.valor)}</span></div>

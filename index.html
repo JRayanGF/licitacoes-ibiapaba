@@ -73,7 +73,7 @@ $("go").onclick=async()=>{
   if(j.erro)throw new Error(j.erro);
   window._dbg=j;
   const termos=$("kw").value.split(",").map(norm).map(t=>t.trim()).filter(Boolean);
-  let it=j.itens.filter(x=>!termos.length||termos.some(t=>norm(x.objeto).includes(t)));
+  let it=j.itens.filter(x=>(!x.modalidadeId||mo.includes(x.modalidadeId))&&(!termos.length||termos.some(t=>norm(x.objeto).includes(t))));
   it.sort((a,b)=>(b.publicacao||"").localeCompare(a.publicacao||""));
   $("st").textContent=`${it.length} resultado(s)`+` · ${j.total} contratações lidas no PNCP`+((j.falhas&&j.falhas.length)?` · avisos do PNCP: ${j.falhas.slice(0,3).join("; ")}`:"");
   $("res").innerHTML=it.map(x=>{let o=esc(x.objeto);

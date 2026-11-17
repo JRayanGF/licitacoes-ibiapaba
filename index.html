@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Licitações · Serra da Ibiapaba</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1c2430;--mut:#667085;--bd:#e2e5ea;--ac:#1d6f42;--ac2:#e7f4ec}
+@media(prefers-color-scheme:dark){:root{--bg:#14181d;--card:#1c2229;--tx:#e8ecf0;--mut:#9aa5b1;--bd:#2c343d;--ac:#3fb273;--ac2:#1d3a2b}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:20px;max-width:1000px;margin:auto}h1{margin:0 0 4px;font-size:22px}p.s{margin:0;color:var(--mut)}
+main{max-width:1000px;margin:auto;padding:0 20px 40px}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+label.t{font-weight:600;display:block;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--bd);border-radius:999px;padding:6px 12px;cursor:pointer;user-select:none}
+.chip.on{background:var(--ac2);border-color:var(--ac);color:var(--ac);font-weight:600}
+.chip input{display:none}
+input[type=text],input[type=date],select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:11px 20px;font:inherit;font-weight:600;cursor:pointer}
+button.l{background:none;color:var(--ac);padding:4px 8px}
+.r{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px}
+.r h3{margin:0 0 6px;font-size:15px}.m{color:var(--mut);font-size:13px;display:flex;flex-wrap:wrap;gap:4px 14px}
+.tag{background:var(--ac2);color:var(--ac);border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600}
+mark{background:#ffe58a;color:#000;border-radius:3px}a{color:var(--ac)}
+#st{margin:10px 0;color:var(--mut)}
+</style></head><body>
+<header><h1>Licitações · Serra da Ibiapaba</h1>
+<p class="s">Dados oficiais do PNCP (Portal Nacional de Contratações Públicas)</p></header>
+<main>
+<div class="box"><label class="t">Prefeituras <button class="l" id="todas">marcar todas</button><button class="l" id="nenhuma">limpar</button></label>
+<div class="chips" id="muns"></div></div>
+<div class="box"><label class="t">O que você procura? <span style="font-weight:400;color:var(--mut)">(separe termos por vírgula)</span></label>
+<input type="text" id="kw" placeholder="ex: merenda, ambulância, software, pavimentação">
+<div class="row" style="margin-top:12px">
+<div><label class="t">Tipo de busca</label><select id="modo"><option value="proposta">Abertas para propostas</option><option value="publicacao">Publicadas no período</option></select></div>
+<div id="dts" style="display:none"><label class="t">De</label><input type="date" id="di"></div>
+<div id="dts2"><label class="t" id="lbf">Propostas até</label><input type="date" id="df"></div></div>
+<label class="t" style="margin-top:12px">Modalidades</label><div class="chips" id="mods"></div>
+<div style="margin-top:14px"><button id="go">Buscar</button></div></div>
+<div id="st"></div><div id="res"></div></main>
+<script>
+const MODS={6:"Pregão Eletrônico",8:"Dispensa",4:"Concorrência Eletrônica",9:"Inexigibilidade",12:"Credenciamento",7:"Pregão Presencial",5:"Concorrência Presencial"};
+const $=id=>document.getElementById(id);
+const norm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
+function chip(box,val,txt,on){const l=document.createElement("label");l.className="chip"+(on?" on":"");
+ l.innerHTML=`<input type="checkbox" value="${val}" ${on?"checked":""}>${txt}`;
+ l.querySelector("input").onchange=e=>{l.classList.toggle("on",e.target.checked);salvar()};box.appendChild(l)}
+const sel=b=>[...b.querySelectorAll("input:checked")].map(i=>i.value);
+function salvar(){sv("sel",{m:sel($("muns")),o:sel($("mods")),k:$("kw").value})}
+function setAll(v){$("muns").querySelectorAll("input").forEach(i=>{i.checked=v;i.parentNode.classList.toggle("on",v)});salvar()}
+$("todas").onclick=()=>setAll(true);$("nenhuma").onclick=()=>setAll(false);
+const hoje=new Date().toISOString().slice(0,10),ini=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+$("df").value=hoje;$("di").value=ini;
+$("modo").onchange=()=>{const p=$("modo").value=="publicacao";$("dts").style.display=p?"":"none";$("lbf").textContent=p?"Até":"Propostas até";if(p)$("df").value=hoje}
+const S=ld("sel",{m:null,o:["6","8"],k:""});$("kw").value=S.k||"";$("kw").oninput=salvar;
+Object.entries(MODS).forEach(([k,v])=>chip($("mods"),k,v,S.o.includes(k)));
+fetch("/.netlify/functions/pncp?action=municipios").then(r=>r.json()).then(l=>{
+ l.forEach(m=>chip($("muns"),m.ibge,m.nome,S.m?S.m.includes(m.ibge):true));
+}).catch(()=>$("st").textContent="Erro ao carregar municípios.");
+const R=v=>v?Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—";
+const D=d=>d?new Date(d).toLocaleDateString("pt-BR"):"—";
+$("go").onclick=async()=>{
+ const ib=sel($("muns")),mo=sel($("mods"));
+ if(!ib.length)return $("st").textContent="Marque ao menos uma prefeitura.";
+ if(!mo.length)return $("st").textContent="Marque ao menos uma modalidade.";
+ $("st").textContent="Buscando no PNCP…";$("res").innerHTML="";$("go").disabled=true;
+ const p=new URLSearchParams({ibge:ib.join(","),modalidades:mo.join(","),modo:$("modo").value,dataFinal:$("df").value,dataInicial:$("di").value});
+ try{
+  const j=await (await fetch("/.netlify/functions/pncp?"+p)).json();
+  if(j.erro)throw new Error(j.erro);
+  const termos=$("kw").value.split(",").map(norm).map(t=>t.trim()).filter(Boolean);
+  let it=j.itens.filter(x=>!termos.length||termos.some(t=>norm(x.objeto).includes(t)));
+  it.sort((a,b)=>(b.publicacao||"").localeCompare(a.publicacao||""));
+  $("st").textContent=`${it.length} resultado(s)`+(termos.length?` de ${j.total} contratações`:"");
+  $("res").innerHTML=it.map(x=>{let o=esc(x.objeto);
+   termos.forEach(t=>{if(!t)return;const re=new RegExp("("+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");o=o.replace(re,"<mark>$1</mark>")});
+   return `<div class="r"><h3>${o}</h3><div class="m"><span class="tag">${esc(x.municipio)}</span><span>${esc(x.orgao)}</span><span>${esc(x.modalidade)}</span><span>${R(x.valor)}</span></div>
+   <div class="m" style="margin-top:6px"><span>Publicado: ${D(x.publicacao)}</span><span>Encerra: ${D(x.encerramento)}</span><span>${esc(x.situacao)}</span>${x.link?`<a href="${x.link}" target="_blank" rel="noopener">Ver no PNCP ↗</a>`:""}</div></div>`}).join("");
+ }catch(e){$("st").textContent="Erro na busca: "+e.message}
+ $("go").disabled=false};
+</script></body></html>

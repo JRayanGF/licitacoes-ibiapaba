@@ -8,7 +8,8 @@ const FALHAS = [];
 async function getJson(url) {
   let r;
   try { r = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0 licitacoes-ibiapaba" } }); }
-  catch (e) { FALHAS.push("rede: " + e.message); return { data: [] }; }
+  catch (e) { console.log("PNCP FALHA REDE", e.message, url.slice(0, 160)); FALHAS.push("rede: " + e.message); return { data: [] }; }
+  console.log("PNCP", r.status, url.slice(0, 220));
   if (!r.ok) { FALHAS.push("HTTP " + r.status + " em " + url.split("?")[0].split("/").slice(-1)[0]); return { data: [], erro: r.status }; }
   const t = await r.text();
   try { return JSON.parse(t); } catch { return { data: [] }; }
@@ -71,6 +72,7 @@ exports.handler = async (event) => {
       link: x.orgaoEntidade?.cnpj ? `https://pncp.gov.br/app/editais/${x.orgaoEntidade.cnpj}/${x.anoCompra}/${x.sequencialCompra}` : null,
       origem: x.linkSistemaOrigem
     }));
+    console.log("RESUMO total=" + itens.length + " falhas=" + JSON.stringify([...new Set(FALHAS)]));
     return ok({ total: itens.length, itens, falhas: [...new Set(FALHAS)] });
   } catch (e) {
     return ok({ erro: String(e) }, 500);

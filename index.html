@@ -60,6 +60,52 @@ Object.entries(MODS).forEach(([k,v])=>chip($("mods"),k,v,S.o.includes(k)));
 fetch("/.netlify/functions/pncp?action=municipios").then(r=>r.json()).then(l=>{
  l.forEach(m=>chip($("muns"),m.ibge,m.nome,S.m?S.m.includes(m.ibge):true));
 }).catch(()=>$("st").textContent="Erro ao carregar municípios.");
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const NOMEM={};
+async function pget(u,falhas){
+ for(let t=1;t<=5;t++){
+  let r;
+  try{r=await fetch(u,{headers:{accept:"application/json"}})}catch(e){throw new Error("CORS")}
+  if(r.status==429||r.status>=500){await sleep(2000*t);continue}
+  if(!r.ok){falhas.push("HTTP "+r.status);return{data:[],erro:r.status}}
+  const tx=await r.text();if(!tx)return{data:[]};try{return JSON.parse(tx)}catch(e){return{data:[]}}
+ }
+ falhas.push("PNCP pediu para esperar (429)");return{data:[],erro:429}
+}
+async function buscaDireta(ib,mods,modo,di,df){
+ const falhas=[],todos=[],f=d=>d.replace(/-/g,"");
+ const un=async(ibge,mod,nome)=>{
+  let status=200;
+  for(let pg=1;pg<=40;pg++){
+   const u=new URL("https://pncp.gov.br/api/consulta/v1/contratacoes/"+modo);
+   u.searchParams.set("dataFinal",f(df));
+   if(modo=="publicacao")u.searchParams.set("dataInicial",f(di));
+   if(mod)u.searchParams.set("codigoModalidadeContratacao",mod);
+   u.searchParams.set("codigoMunicipioIbge",ibge);u.searchParams.set("pagina",pg);u.searchParams.set("tamanhoPagina",50);
+   $("st").textContent=`Lendo ${nome}${mod?" ("+MODS[mod]+")":""} · página ${pg} · ${todos.length} lidas…`;
+   const j=await pget(u.toString(),falhas);
+   if(j.erro){status=j.erro;break}
+   todos.push(...(j.data||[]));
+   if(!j.totalPaginas||pg>=j.totalPaginas)break;
+   await sleep(300);
+  }
+  return status;
+ };
+ for(const ibge of ib){
+  const nome=(document.querySelector(`#muns input[value="${ibge}"]`)?.parentNode.textContent)||ibge;
+  let st=200;
+  if(modo=="proposta")st=await un(ibge,"",nome);
+  if(modo!="proposta"||st==400){for(const m of mods){await un(ibge,m,nome);await sleep(300)}}
+ }
+ const vistos=new Set();
+ const itens=todos.filter(x=>!vistos.has(x.numeroControlePNCP)&&vistos.add(x.numeroControlePNCP)).map(x=>({
+  id:x.numeroControlePNCP,objeto:x.objetoCompra,orgao:x.orgaoEntidade?.razaoSocial,municipio:x.unidadeOrgao?.municipioNome,
+  modalidade:x.modalidadeNome,modalidadeId:String(x.modalidadeId??""),situacao:x.situacaoCompraNome,
+  valor:x.valorTotalHomologado||x.valorTotalEstimado,publicacao:x.dataPublicacaoPncp,encerramento:x.dataEncerramentoProposta,
+  link:x.orgaoEntidade?.cnpj?`https://pncp.gov.br/app/editais/${x.orgaoEntidade.cnpj}/${x.anoCompra}/${x.sequencialCompra}`:null}));
+ return{total:itens.length,itens,falhas:[...new Set(falhas)]};
+}
 const R=v=>v?Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—";
 const D=d=>d?new Date(d).toLocaleDateString("pt-BR"):"—";
 $("go").onclick=async()=>{
@@ -69,7 +115,10 @@ $("go").onclick=async()=>{
  $("st").textContent="Buscando no PNCP (pode levar até 1 minuto)…";$("res").innerHTML="";$("go").disabled=true;
  const p=new URLSearchParams({ibge:ib.join(","),modalidades:mo.join(","),modo:$("modo").value,dataFinal:$("df").value,dataInicial:$("di").value});
  try{
-  const j=await (await fetch("/.netlify/functions/pncp?"+p)).json();
+  const j=await buscaDireta(ib,mo,$("modo").value,$("di").value,$("df").value).catch(async e=>{
+   if(e.message!=="CORS")throw e;
+   $("st").textContent="Navegador bloqueado pelo PNCP, usando o servidor…";
+   return await (await fetch("/.netlify/functions/pncp?"+p)).json()});
   if(j.erro)throw new Error(j.erro);
   window._dbg=j;
   const termos=$("kw").value.split(",").map(norm).map(t=>t.trim()).filter(Boolean);

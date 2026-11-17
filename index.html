@@ -39,7 +39,7 @@ mark{background:#ffe58a;color:#000;border-radius:3px}a{color:var(--ac)}
 <div style="margin-top:14px"><button id="go">Buscar</button></div></div>
 <div id="st"></div><div id="res"></div></main>
 <script>
-const MODS={6:"Pregão Eletrônico",8:"Dispensa",4:"Concorrência Eletrônica",9:"Inexigibilidade",12:"Credenciamento",7:"Pregão Presencial",5:"Concorrência Presencial"};
+const MODS={6:"Pregão Eletrônico",8:"Dispensa",4:"Concorrência Eletrônica",9:"Inexigibilidade",12:"Credenciamento",7:"Pregão Presencial",5:"Concorrência Presencial",1:"Leilão Eletrônico",2:"Diálogo Competitivo",3:"Concurso",10:"Manifestação de Interesse",11:"Pré-qualificação",13:"Leilão Presencial"};
 const $=id=>document.getElementById(id);
 const norm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -49,13 +49,13 @@ function chip(box,val,txt,on){const l=document.createElement("label");l.classNam
  l.innerHTML=`<input type="checkbox" value="${val}" ${on?"checked":""}>${txt}`;
  l.querySelector("input").onchange=e=>{l.classList.toggle("on",e.target.checked);salvar()};box.appendChild(l)}
 const sel=b=>[...b.querySelectorAll("input:checked")].map(i=>i.value);
-function salvar(){sv("sel",{m:sel($("muns")),o:sel($("mods")),k:$("kw").value})}
+function salvar(){sv("sel2",{m:sel($("muns")),o:sel($("mods")),k:$("kw").value})}
 function setAll(v){$("muns").querySelectorAll("input").forEach(i=>{i.checked=v;i.parentNode.classList.toggle("on",v)});salvar()}
 $("todas").onclick=()=>setAll(true);$("nenhuma").onclick=()=>setAll(false);
 const hoje=new Date().toISOString().slice(0,10),ini=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
 const fut=new Date(Date.now()+90*864e5).toISOString().slice(0,10);$("df").value=fut;$("di").value=ini;
 $("modo").onchange=()=>{const p=$("modo").value=="publicacao";$("dts").style.display=p?"":"none";$("lbf").textContent=p?"Até":"Propostas até";$("df").value=p?hoje:fut}
-const S=ld("sel",{m:null,o:["6","8"],k:""});$("kw").value=S.k||"";$("kw").oninput=salvar;
+const S=ld("sel2",{m:null,o:Object.keys(MODS),k:""});$("kw").value=S.k||"";$("kw").oninput=salvar;
 Object.entries(MODS).forEach(([k,v])=>chip($("mods"),k,v,S.o.includes(k)));
 fetch("/.netlify/functions/pncp?action=municipios").then(r=>r.json()).then(l=>{
  l.forEach(m=>chip($("muns"),m.ibge,m.nome,S.m?S.m.includes(m.ibge):true));
@@ -66,7 +66,7 @@ $("go").onclick=async()=>{
  const ib=sel($("muns")),mo=sel($("mods"));
  if(!ib.length)return $("st").textContent="Marque ao menos uma prefeitura.";
  if(!mo.length)return $("st").textContent="Marque ao menos uma modalidade.";
- $("st").textContent="Buscando no PNCP…";$("res").innerHTML="";$("go").disabled=true;
+ $("st").textContent="Buscando no PNCP (pode levar até 1 minuto)…";$("res").innerHTML="";$("go").disabled=true;
  const p=new URLSearchParams({ibge:ib.join(","),modalidades:mo.join(","),modo:$("modo").value,dataFinal:$("df").value,dataInicial:$("di").value});
  try{
   const j=await (await fetch("/.netlify/functions/pncp?"+p)).json();
@@ -75,7 +75,7 @@ $("go").onclick=async()=>{
   const termos=$("kw").value.split(",").map(norm).map(t=>t.trim()).filter(Boolean);
   let it=j.itens.filter(x=>!termos.length||termos.some(t=>norm(x.objeto).includes(t)));
   it.sort((a,b)=>(b.publicacao||"").localeCompare(a.publicacao||""));
-  $("st").textContent=`${it.length} resultado(s)`+(termos.length?` de ${j.total} contratações`:"")+((j.falhas&&j.falhas.length)?` · avisos do PNCP: ${j.falhas.slice(0,3).join("; ")}`:"");
+  $("st").textContent=`${it.length} resultado(s)`+` · ${j.total} contratações lidas no PNCP`+((j.falhas&&j.falhas.length)?` · avisos do PNCP: ${j.falhas.slice(0,3).join("; ")}`:"");
   $("res").innerHTML=it.map(x=>{let o=esc(x.objeto);
    termos.forEach(t=>{if(!t)return;const re=new RegExp("("+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");o=o.replace(re,"<mark>$1</mark>")});
    return `<div class="r"><h3>${o}</h3><div class="m"><span class="tag">${esc(x.municipio)}</span><span>${esc(x.orgao)}</span><span>${esc(x.modalidade)}</span><span>${R(x.valor)}</span></div>

@@ -25,9 +25,9 @@ exports.handler = async (event) => {
       return ok(res);
     }
     const ibges = (q.ibge || "").split(",").filter(Boolean);
-    const mods = (q.modalidades || "6,8").split(",").filter(Boolean);
+    const mods = (q.modalidades || "4,5,6,7,8,9,12").split(",").filter(Boolean);
     const modo = q.modo === "publicacao" ? "publicacao" : "proposta";
-    const maxPag = Math.min(parseInt(q.paginas || "3", 10), 5);
+    const maxPag = 30;
     const hoje = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const dF = (q.dataFinal || hoje).replace(/-/g, "");
     const dI = (q.dataInicial || dF).replace(/-/g, "");
@@ -45,14 +45,16 @@ exports.handler = async (event) => {
         u.searchParams.set("codigoMunicipioIbge", ibge);
         u.searchParams.set("uf", "CE");
         u.searchParams.set("pagina", p);
-        u.searchParams.set("tamanhoPagina", 50);
+        u.searchParams.set("tamanhoPagina", 100);
         const j = await getJson(u.toString());
         (j.data || []).forEach(x => out.push(x));
         if (!j.totalPaginas || p >= j.totalPaginas) break;
       }
       return out;
     };
-    const todos = (await Promise.all(jobs.map(rodar))).flat();
+    const res = []; let i = 0;
+    await Promise.all(Array.from({ length: 8 }, async () => { while (i < jobs.length) { const j = jobs[i++]; res.push(await rodar(j)); } }));
+    const todos = res.flat();
     const vistos = new Set();
     const itens = todos.filter(x => !vistos.has(x.numeroControlePNCP) && vistos.add(x.numeroControlePNCP)).map(x => ({
       id: x.numeroControlePNCP,
